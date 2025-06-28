@@ -246,7 +246,7 @@ export default function Home() {
             />
             <RuleList rules={rules} onDelete={handleDeleteRule} />
             <PriorityConfigurator onChange={handlePrioritiesChange} />
-            <ExportRulesButton rules={rules} />
+            {/* <ExportRulesButton rules={rules} /> */}
             <ExportButton
               clients={clients}
               workers={workers}
@@ -258,7 +258,49 @@ export default function Home() {
         </div>
         {/* Validation Panel (right) */}
         <div className="w-[350px] sticky top-15 h-fit shrink-0">
-          <ValidationPanel errors={errors} />
+          <ValidationPanel
+  errors={errors}
+  data={
+    activeEntity === "clients"
+      ? clients
+      : activeEntity === "workers"
+      ? workers
+      : tasks
+  }
+  onApplyFix={(rowId: string, field: string, newValue: any) => {
+  const dataArr =
+    activeEntity === "clients"
+      ? clients
+      : activeEntity === "workers"
+      ? workers
+      : tasks;
+  const setData =
+    activeEntity === "clients"
+      ? setClients
+      : activeEntity === "workers"
+      ? setWorkers
+      : setTasks;
+  const idField =
+    activeEntity === "clients"
+      ? "ClientID"
+      : activeEntity === "workers"
+      ? "WorkerID"
+      : "TaskID";
+  const idx = dataArr.findIndex((row) => row[idField] === rowId);
+  if (idx !== -1) {
+    const updated = [...dataArr];
+    updated[idx] = { ...updated[idx], [field]: newValue };
+    setData(updated);
+    // Re-validate after fix
+    if (activeEntity === "clients") setErrors(validateClients(updated));
+    else if (activeEntity === "workers") setErrors(validateWorkers(updated));
+    else setErrors(validateTasks(updated));
+    console.log("Applied fix:", { rowId, field, newValue, updatedRow: updated[idx] });
+  } else {
+    console.warn("Row not found for fix:", { rowId, field, newValue });
+  }
+}}
+/>
         </div>
       </main>
     </div>

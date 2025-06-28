@@ -116,7 +116,7 @@ export function validateWorkers(data: Worker[]): ValidationError[] {
         entity: "worker",
         rowId: row.WorkerID ?? "",
         field: "AvailableSlots",
-        message: "AvailableSlots count is less than MaxLoadPerPhase (worker overloaded)",
+        message: "AvailableSlots count is less than MaxLoadPerPhase (worker overloaded) i.e. AvailableSlots.length < MaxLoadPerPhase",
       });
     }
   });

@@ -1,14 +1,24 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { ValidationError } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 type ValidationPanelProps = {
   errors: ValidationError[];
-  onErrorClick?: (entity: string, rowId: string) => void; // Optional callback for scrolling
+  data: any[];
+  onErrorClick?: (entity: string, rowId: string) => void;
+  onApplyFix?: (rowId: string, field: string, newValue: any) => void;
 };
 
 const entityLabels: Record<string, string> = {
@@ -18,9 +28,58 @@ const entityLabels: Record<string, string> = {
 };
 
 export const ValidationPanel: React.FC<ValidationPanelProps> = ({
+  data,
   errors,
   onErrorClick,
+  onApplyFix,
 }) => {
+  const [loadingIdx, setLoadingIdx] = useState<number | null>(null);
+  const [dialog, setDialog] = useState<{
+    open: boolean;
+    suggestion?: string;
+    newValue?: any;
+    rowId?: string;
+    field?: string;
+  }>({ open: false });
+
+  // Suggest Fix handler
+  async function handleSuggestFix(error: ValidationError, idx: number) {
+    setLoadingIdx(idx);
+    try {
+      const rowData =
+        data.find(
+          (row) =>
+            row[
+              `${error.entity.charAt(0).toUpperCase() + error.entity.slice(1)}ID`
+            ] === error.rowId
+        ) || {};
+      const res = await fetch("/api/suggest-fix", {
+        method: "POST",
+        body: JSON.stringify({
+          error,
+          rowData,
+          context: {},
+        }),
+        headers: { "Content-Type": "application/json" },
+      });
+      const result = await res.json();
+      setDialog({
+        open: true,
+        suggestion: result.suggestion || "No suggestion available.",
+        newValue: result.newValue,
+        rowId: error.rowId,
+        field: error.field,
+      });
+    } catch (e) {
+      setDialog({
+        open: true,
+        suggestion: "Failed to get suggestion.",
+      });
+    } finally {
+      setLoadingIdx(null);
+    }
+  }
+
   // Group errors by entity
   const grouped = errors.reduce<Record<string, ValidationError[]>>((acc, err) => {
     acc[err.entity] = acc[err.entity] || [];
@@ -40,19 +99,39 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
               {Object.entries(grouped).map(([entity, entityErrors]) => (
                 <div key={entity} className="mb-4">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium">{entityLabels[entity] || entity}</span>
+                    <span className="font-medium">
+                      {entityLabels[entity] || entity}
+                    </span>
                     <Badge variant="destructive">{entityErrors.length}</Badge>
                   </div>
                   <ul className="pl-3 space-y-1">
                     {entityErrors.map((err, i) => (
                       <li
                         key={i}
-                        className="text-sm text-destructive cursor-pointer hover:underline"
-                        onClick={() =>
-                          onErrorClick?.(entity, err.rowId)
-                        }
+                        className="text-sm text-destructive flex items-center gap-2"
                       >
-                        Row: <span className="font-mono">{err.rowId || "?"}</span>, <b>{err.field}</b>: {err.message}
+                        <span
+                          onClick={() => onErrorClick?.(entity, err.rowId)}
+                          style={{
+                            cursor: onErrorClick ? "pointer" : undefined,
+                          }}
+                          className={onErrorClick ? "hover:underline" : ""}
+                        >
+                          Row:{" "}
+                          <span className="font-mono">
+                            {err.rowId || "?"}
+                          </span>
+                          , <b>{err.field}</b>: {err.message}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          title="Suggest Fix"
+                          onClick={() => handleSuggestFix(err, i)}
+                          disabled={loadingIdx === i}
+                        >
+                          {loadingIdx === i ? "..." : <span role="img" aria-label="Suggest Fix">🧠</span>}
+                        </Button>
                       </li>
                     ))}
                   </ul>
@@ -62,6 +141,38 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
           </ScrollArea>
         )}
       </CardContent>
+      <Dialog open={dialog.open} onOpenChange={(open) => setDialog({ ...dialog, open })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>AI Suggestion</DialogTitle>
+          </DialogHeader>
+          <div className="mb-2">
+            <strong>Suggestion:</strong>
+            <div className="mt-1">{dialog.suggestion}</div>
+          </div>
+          {dialog.newValue !== undefined && (
+            <div className="mb-2">
+              <strong>Suggested Value:</strong>
+              <div className="mt-1 break-all">{String(dialog.newValue)}</div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setDialog({ open: false })} variant="outline">
+              Reject
+            </Button>
+            {dialog.newValue !== undefined && dialog.rowId && dialog.field && (
+              <Button
+                onClick={() => {
+                  onApplyFix?.(dialog.rowId, dialog.field, dialog.newValue);
+                  setDialog({ open: false });
+                }}
+              >
+                Accept
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
