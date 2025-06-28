@@ -10,6 +10,7 @@ interface ExportButtonProps {
   tasks: any[];
   rules: any[];
   priorities: Record<string, number>;
+  disabled?: boolean;
 }
 
 export default function ExportButton({
@@ -18,10 +19,17 @@ export default function ExportButton({
   tasks,
   rules,
   priorities,
+  disabled
 }: ExportButtonProps) {
+  const isExportable =
+    (clients && clients.length > 0) ||
+    (workers && workers.length > 0) ||
+    (tasks && tasks.length > 0) ||
+    (rules && rules.length > 0) ||
+    (priorities && Object.keys(priorities).length > 0);
+
   const handleExport = () => {
     try {
-      // (Optional) Add validation here if needed
       exportAllData({ clients, workers, tasks, rules, priorities });
       toast.success("Export started! Your files are downloading.");
     } catch (e: any) {
@@ -30,8 +38,8 @@ export default function ExportButton({
   };
 
   return (
-    <Button onClick={handleExport}>
+    <Button disabled={!isExportable || disabled} onClick={handleExport}>
       📦 Export Cleaned Data + Rules
     </Button>
-    );
+  );
 }

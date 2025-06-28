@@ -21,7 +21,8 @@ interface SidebarProps {
   clientGroups: string[];
   workerGroups: string[];
   priorities: Record<string, number>;
-handleFileParsed: (entityType: EntityType, parsedData: any) => void;  handlePrioritiesChange: (weights: Record<string, number>) => void;
+  handleFileParsed: (entityType: EntityType, parsedData: any) => void;
+  handlePrioritiesChange: (weights: Record<string, number>) => void;
 }
 
 export default function Sidebar({
@@ -37,12 +38,22 @@ export default function Sidebar({
 }: SidebarProps) {
   const [open, setOpen] = useState(false);
 
+  // Disable Add Rule if no files (no clients, workers, or tasks loaded)
+  const noFilesPresent =
+    taskIDs.length === 0 &&
+    clientGroups.length === 0 &&
+    workerGroups.length === 0;
+
   return (
     <aside className="w-72 flex flex-col gap-4 shrink-0 bg-card border-r p-4">
       <FileUploader onFileParsed={handleFileParsed} />
 
       {/* Add Rule Button */}
-      <Button className="w-full" onClick={() => setOpen(true)}>
+      <Button
+        className="w-full"
+        onClick={() => setOpen(true)}
+        disabled={noFilesPresent}
+      >
         + Add Rule
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -63,16 +74,20 @@ export default function Sidebar({
       </Dialog>
 
       {/* Current Rules */}
-      <div className="flex-1 overflow-auto">
-        <div className="font-semibold text-sm mb-2">Current Rules</div>
-        <RuleList rules={rules} onDelete={onDeleteRule} />
-      </div>
+      <div>
+        <div className="flex-1 overflow-auto">
+          <div className="font-semibold text-sm mb-2">Current Rules</div>
+          <RuleList rules={rules} onDelete={onDeleteRule} />
+        </div>
 
-      {/* Priority Configurator */}
-      <PriorityConfigurator
-        onChange={handlePrioritiesChange}
-        priorities={priorities}
-      />
+        {/* Priority Configurator */}
+        <div className="mt-4">
+          <PriorityConfigurator
+            onChange={handlePrioritiesChange}
+            priorities={priorities}
+          />
+        </div>
+      </div>
     </aside>
   );
 }

@@ -13,13 +13,12 @@ import { validateClients } from "@/validators/validateClients";
 import { validateWorkers } from "@/validators/validateWorkers";
 import { validateTasks } from "@/validators/validateTasks";
 import { searchEntitiesWithNaturalLanguage } from "@/ai/naturalSearch";
-import type { Client, Worker, Task, ValidationError } from "@/types";
+import type { Client, Worker, Task, ValidationError, EntityType } from "@/types";
 import PriorityConfigurator from "@/components/PriorityConfigurator";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import MainPanel from "@/components/layout/MainPanel";
 
-export type EntityType = "clients" | "workers" | "tasks";
 
 export default function Home() {
   const [clients, setClients] = useState<Client[]>([]);

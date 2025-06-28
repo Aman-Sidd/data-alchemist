@@ -53,7 +53,7 @@ ONLY return a single JSON array of suggestions. No markdown. No extra explanatio
 `;
 
   const response = await openai.chat.completions.create({
-    model: "deepseek/deepseek-r1-0528:free",
+    model: "deepseek/deepseek-chat-v3-0324:free",
     messages: [
       { role: "system", content: prompt },
       {

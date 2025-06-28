@@ -56,20 +56,12 @@ export default function MainPanel({
   taskColumns,
   handleCellEdit,
   cellErrors,
-  rules,
-  handleAddRule,
-  handleDeleteRule,
-  clientGroups,
-  workerGroups,
-  handleNLSearch,
   setFilteredClients,
   setFilteredWorkers,
   setFilteredTasks,
-  priorities,
-  handlePrioritiesChange,
 }: MainPanelProps) {
   return (
-    <div className="flex-1 flex flex-col gap-8">
+    <div className="flex-1 flex flex-col gap-8 pb-6">
       {/* Entities Selector */}
       <div className="flex justify-center mb-2">
         <div className="flex gap-2">
@@ -116,28 +108,46 @@ export default function MainPanel({
       {/* DataGrid */}
       <div>
         {activeEntity === "clients" && (
-          <DataGrid
-            data={filteredClients ?? clients}
-            columns={clientColumns}
-            onCellEdit={handleCellEdit}
-            cellErrors={cellErrors}
-          />
+          (filteredClients ?? clients).length > 0 ? (
+            <DataGrid
+              data={filteredClients ?? clients}
+              columns={clientColumns}
+              onCellEdit={handleCellEdit}
+              cellErrors={cellErrors}
+            />
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              No client data available.
+            </div>
+          )
         )}
         {activeEntity === "workers" && (
-          <DataGrid
-            data={filteredWorkers ?? workers}
-            columns={workerColumns}
-            onCellEdit={handleCellEdit}
-            cellErrors={cellErrors}
-          />
+          (filteredWorkers ?? workers).length > 0 ? (
+            <DataGrid
+              data={filteredWorkers ?? workers}
+              columns={workerColumns}
+              onCellEdit={handleCellEdit}
+              cellErrors={cellErrors}
+            />
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              No worker data available.
+            </div>
+          )
         )}
         {activeEntity === "tasks" && (
-          <DataGrid
-            data={filteredTasks ?? tasks}
-            columns={taskColumns}
-            onCellEdit={handleCellEdit}
-            cellErrors={cellErrors}
-          />
+          (filteredTasks ?? tasks).length > 0 ? (
+            <DataGrid
+              data={filteredTasks ?? tasks}
+              columns={taskColumns}
+              onCellEdit={handleCellEdit}
+              cellErrors={cellErrors}
+            />
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              No task data available.
+            </div>
+          )
         )}
       </div>
     </div>

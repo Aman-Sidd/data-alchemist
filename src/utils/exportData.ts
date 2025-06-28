@@ -1,19 +1,5 @@
 import { saveAs } from 'file-saver';
 
-export interface ExportDataParams<
-  TClient extends Record<string, any>,
-  TWorker extends Record<string, any>,
-  TTask extends Record<string, any>,
-  TRule = any,
-  TPriority extends Record<string, number> = Record<string, number>
-> {
-  clients: TClient[];
-  workers: TWorker[];
-  tasks: TTask[];
-  rules: TRule[];
-  priorities: TPriority;
-}
-
 // Utility to remove __EMPTY keys from an object
 function cleanObject<T extends Record<string, any>>(obj: T): T {
   const cleaned: Record<string, any> = {};
@@ -68,18 +54,30 @@ export function exportAllData<
   tasks,
   rules,
   priorities
-}: ExportDataParams<TClient, TWorker, TTask, TRule, TPriority>) {
-  const clientsCSV = new Blob([toCSV(clients)], { type: "text/csv" });
-  const workersCSV = new Blob([toCSV(workers)], { type: "text/csv" });
-  const tasksCSV = new Blob([toCSV(tasks)], { type: "text/csv" });
-
-  const rulesJSON = new Blob(
-    [JSON.stringify({ rules, priorities }, null, 2)],
-    { type: "application/json" }
-  );
-
-  saveAs(clientsCSV, "clients_cleaned.csv");
-  saveAs(workersCSV, "workers_cleaned.csv");
-  saveAs(tasksCSV, "tasks_cleaned.csv");
-  saveAs(rulesJSON, "rules.json");
+}: {
+  clients: TClient[];
+  workers: TWorker[];
+  tasks: TTask[];
+  rules: TRule[];
+  priorities: TPriority;
+}) {
+  if (clients && clients.length > 0) {
+    const clientsCSV = new Blob([toCSV(clients)], { type: "text/csv" });
+    saveAs(clientsCSV, "clients_cleaned.csv");
+  }
+  if (workers && workers.length > 0) {
+    const workersCSV = new Blob([toCSV(workers)], { type: "text/csv" });
+    saveAs(workersCSV, "workers_cleaned.csv");
+  }
+  if (tasks && tasks.length > 0) {
+    const tasksCSV = new Blob([toCSV(tasks)], { type: "text/csv" });
+    saveAs(tasksCSV, "tasks_cleaned.csv");
+  }
+  if ((rules && rules.length > 0) || (priorities && Object.keys(priorities).length > 0)) {
+    const rulesJSON = new Blob(
+      [JSON.stringify({ rules, priorities }, null, 2)],
+      { type: "application/json" }
+    );
+    saveAs(rulesJSON, "rules.json");
+  }
 }

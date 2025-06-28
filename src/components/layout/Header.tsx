@@ -11,6 +11,11 @@ interface HeaderProps {
 }
 
 export default function Header({ clients, workers, tasks, rules, priorities }: HeaderProps) {
+  const noEntities =
+    (!clients || clients.length === 0) &&
+    (!workers || workers.length === 0) &&
+    (!tasks || tasks.length === 0);
+
   return (
     <header className="w-full border-b bg-card px-8 py-4 flex items-center justify-between">
       <span className="text-2xl font-bold tracking-tight">Data Alchemist</span>
@@ -20,6 +25,7 @@ export default function Header({ clients, workers, tasks, rules, priorities }: H
         tasks={tasks}
         rules={rules}
         priorities={priorities}
+        disabled={noEntities}
       />
     </header>
   );
