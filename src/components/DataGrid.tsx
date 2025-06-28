@@ -69,7 +69,11 @@ const DataGrid: React.FC<DataGridProps> = ({
                       "w-full bg-transparent",
                       isCellInvalid(rowIdx, cell.column.id) && "border-destructive focus-visible:ring-destructive"
                     )}
-                    value={cell.getValue() ?? ""}
+                    value={
+                    cell.getValue() !== undefined && cell.getValue() !== null
+                      ? String(cell.getValue())
+                      : ""
+                  }
                     onChange={(e) =>
                       onCellEdit(rowIdx, cell.column.id, e.target.value)
                     }

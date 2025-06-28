@@ -88,18 +88,18 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
   }, {});
 
   return (
-    <Card className="w-full max-w-md">
-      <CardContent className="p-4">
-        <h2 className="font-semibold text-lg mb-2">Validation Issues</h2>
+    <Card className="h-[calc(100vh-6rem)] w-full max-w-xs min-w-[300px] border-l shadow-lg flex flex-col bg-card">
+      <CardContent className="p-4 flex flex-col h-full">
+        <h2 className="font-semibold text-base mb-2">Validation Issues</h2>
         {errors.length === 0 ? (
-          <div className="text-green-600">No errors 🎉</div>
+          <div className="text-green-600 text-sm">No errors 🎉</div>
         ) : (
-          <ScrollArea className="max-h-72 overflow-y-auto border rounded">
-            <div className="pr-2">
+          <ScrollArea className="flex-1 max-h-[70vh] pr-1">
+            <div>
               {Object.entries(grouped).map(([entity, entityErrors]) => (
                 <div key={entity} className="mb-4">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium">
+                    <span className="font-medium text-xs">
                       {entityLabels[entity] || entity}
                     </span>
                     <Badge variant="destructive">{entityErrors.length}</Badge>
@@ -108,7 +108,7 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
                     {entityErrors.map((err, i) => (
                       <li
                         key={i}
-                        className="text-sm text-destructive flex items-center gap-2"
+                        className="text-xs text-destructive flex items-center gap-2"
                       >
                         <span
                           onClick={() => onErrorClick?.(entity, err.rowId)}
@@ -160,10 +160,10 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
             <Button onClick={() => setDialog({ open: false })} variant="outline">
               Reject
             </Button>
-            {dialog.newValue !== undefined && dialog.rowId && dialog.field && (
+            {dialog.newValue !== undefined && typeof dialog.rowId === "string" && typeof dialog.field === "string" && (
               <Button
                 onClick={() => {
-                  onApplyFix?.(dialog.rowId, dialog.field, dialog.newValue);
+                  onApplyFix?.(dialog.rowId as string, dialog.field as string, dialog.newValue);
                   setDialog({ open: false });
                 }}
               >

@@ -15,19 +15,32 @@ import { validateTasks } from "@/validators/validateTasks";
 import { searchEntitiesWithNaturalLanguage } from "@/ai/naturalSearch";
 import type { Client, Worker, Task, ValidationError } from "@/types";
 import PriorityConfigurator from "@/components/PriorityConfigurator";
+import Sidebar from "@/components/layout/Sidebar";
+import Header from "@/components/layout/Header";
+import MainPanel from "@/components/layout/MainPanel";
+
+export type EntityType = "clients" | "workers" | "tasks";
 
 export default function Home() {
   const [clients, setClients] = useState<Client[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [errors, setErrors] = useState<ValidationError[]>([]);
-  const [activeEntity, setActiveEntity] = useState<"clients" | "workers" | "tasks">("clients");
+  const [errors, setErrors] = useState<{
+    clients: ValidationError[];
+    workers: ValidationError[];
+    tasks: ValidationError[];
+  }>({
+    clients: [],
+    workers: [],
+    tasks: [],
+  });
+  const [activeEntity, setActiveEntity] = useState<EntityType>("clients");
   const [filteredClients, setFilteredClients] = useState<Client[] | null>(null);
   const [filteredWorkers, setFilteredWorkers] = useState<Worker[] | null>(null);
   const [filteredTasks, setFilteredTasks] = useState<Task[] | null>(null);
 
   // Rules state
-  const [rules, setRules] = useState<any[]>([]);
+  const [rules, setRules] = useState<RuleType[]>([]);
   const [priorities, setPriorities] = useState<Record<string, number>>({
     PriorityLevel: 5,
     RequestedTaskFulfillment: 5,
@@ -64,61 +77,87 @@ export default function Home() {
   ];
 
   // Handle file parsing
-  const handleFileParsed = (entityType: "clients" | "workers" | "tasks", parsedData: any[]) => {
+  const handleFileParsed = (
+    entityType: EntityType,
+    parsedData: Client[] | Worker[] | Task[]
+  ) => {
     if (entityType === "clients") {
-      setClients(parsedData);
+      setClients(parsedData as Client[]);
       setActiveEntity("clients");
-      setErrors(validateClients(parsedData));
+      setErrors((prev) => ({
+        ...prev,
+        clients: validateClients(parsedData as Client[]),
+      }));
     } else if (entityType === "workers") {
-      setWorkers(parsedData);
+      setWorkers(parsedData as Worker[]);
       setActiveEntity("workers");
-      setErrors(validateWorkers(parsedData));
+      setErrors((prev) => ({
+        ...prev,
+        workers: validateWorkers(parsedData as Worker[]),
+      }));
     } else if (entityType === "tasks") {
-      setTasks(parsedData);
+      setTasks(parsedData as Task[]);
       setActiveEntity("tasks");
-      setErrors(validateTasks(parsedData));
+      setErrors((prev) => ({
+        ...prev,
+        tasks: validateTasks(parsedData as Task[]),
+      }));
     }
   };
 
   // Handle cell edit
-  const handleCellEdit = (rowIndex: number, columnId: string, newValue: any) => {
+  const handleCellEdit = (
+    rowIndex: number,
+    columnId: string,
+    newValue: any
+  ) => {
     if (activeEntity === "clients") {
       const updated = [...clients];
       updated[rowIndex] = { ...updated[rowIndex], [columnId]: newValue };
       setClients(updated);
-      setErrors(validateClients(updated));
+      setErrors((prev) => ({
+        ...prev,
+        clients: validateClients(updated),
+      }));
     } else if (activeEntity === "workers") {
       const updated = [...workers];
       updated[rowIndex] = { ...updated[rowIndex], [columnId]: newValue };
       setWorkers(updated);
-      setErrors(validateWorkers(updated));
+      setErrors((prev) => ({
+        ...prev,
+        workers: validateWorkers(updated),
+      }));
     } else if (activeEntity === "tasks") {
       const updated = [...tasks];
       updated[rowIndex] = { ...updated[rowIndex], [columnId]: newValue };
       setTasks(updated);
-      setErrors(validateTasks(updated));
+      setErrors((prev) => ({
+        ...prev,
+        tasks: validateTasks(updated),
+      }));
     }
   };
 
   // Filter errors for the active entity and map to DataGrid cellErrors
-  const cellErrors = errors
-    .filter((e) => {
-      if (activeEntity === "clients" && e.entity === "client") return true;
-      if (activeEntity === "workers" && e.entity === "worker") return true;
-      if (activeEntity === "tasks" && e.entity === "task") return true;
-      return false;
-    })
-    .map((e) => ({
-      rowIndex:
-        (activeEntity === "clients"
-          ? clients
-          : activeEntity === "workers"
-          ? workers
-          : tasks
-        ).findIndex((row: any) => row[`${activeEntity.slice(0, -1)}ID`] === e.rowId),
-      columnId: e.field,
-      message: e.message,
-    }));
+  const cellErrors = (
+    activeEntity === "clients"
+      ? errors.clients
+      : activeEntity === "workers"
+      ? errors.workers
+      : errors.tasks
+  ).map((e) => ({
+    rowIndex:
+      (activeEntity === "clients"
+        ? clients
+        : activeEntity === "workers"
+        ? workers
+        : tasks
+      ).findIndex(
+        (row: any) => row[`${activeEntity.slice(0, -1)}ID`] === e.rowId
+      ),
+    columnId: e.field,
+    message: e.message,
+  }));
 
   // Example: Use the current clients data for NL search
   async function handleNLSearch() {
@@ -132,7 +171,7 @@ export default function Home() {
   }
 
   // Rule handlers
-  const handleAddRule = (rule: any) => {
+  const handleAddRule = (rule: RuleType) => {
     setRules((prev) => [...prev, rule]);
   };
 
@@ -141,166 +180,160 @@ export default function Home() {
   };
 
   // For RuleBuilder group lists
-  const clientGroups = Array.from(new Set(clients.map(c => c.GroupTag).filter(Boolean)));
-  const workerGroups = Array.from(new Set(workers.map(w => w.WorkerGroup).filter(Boolean)));
+  const clientGroups: string[] = Array.from(
+  new Set(
+    clients
+      .map((c) => c.GroupTag)
+      .filter((g): g is string => typeof g === "string" && !!g)
+  )
+);
+
+const workerGroups: string[] = Array.from(
+  new Set(
+    workers
+      .map((w) => w.WorkerGroup)
+      .filter((g): g is string => typeof g === "string" && !!g)
+  )
+);
 
   // To sync priorities from PriorityConfigurator, you can pass a setter:
   function handlePrioritiesChange(newPriorities: Record<string, number>) {
     setPriorities(newPriorities);
   }
 
+  const activeErrors: ValidationError[] =
+    activeEntity === "clients"
+      ? errors.clients
+      : activeEntity === "workers"
+      ? errors.workers
+      : errors.tasks;
+
   return (
-    <div className="flex flex-col items-center min-h-screen p-8 pb-20 gap-8">
-      <main className="flex flex-row gap-8 w-full max-w-7xl">
-        {/* Main content (left) */}
-        <div className="flex-1 flex flex-col gap-8">
-          <h1 className="text-3xl font-bold mb-2">Data Alchemist</h1>
-          <FileUploader onFileParsed={handleFileParsed} />
-          <div className="flex gap-4">
-            <button
-              className={`px-3 py-1 rounded ${activeEntity === "clients" ? "bg-primary text-white" : "bg-muted"}`}
-              onClick={() => {
-                setActiveEntity("clients");
-                setErrors(validateClients(clients));
-              }}
-            >
-              Clients
-            </button>
-            <button
-              className={`px-3 py-1 rounded ${activeEntity === "workers" ? "bg-primary text-white" : "bg-muted"}`}
-              onClick={() => {
-                setActiveEntity("workers");
-                setErrors(validateWorkers(workers));
-              }}
-            >
-              Workers
-            </button>
-            <button
-              className={`px-3 py-1 rounded ${activeEntity === "tasks" ? "bg-primary text-white" : "bg-muted"}`}
-              onClick={() => {
-                setActiveEntity("tasks");
-                setErrors(validateTasks(tasks));
-              }}
-            >
-              Tasks
-            </button>
-          </div>
-          {/* Natural Language Search */}
-          {activeEntity === "clients" && (
-            <NaturalSearch
-              entityType="clients"
-              data={clients}
-              columns={clientColumns}
-              onFiltered={setFilteredClients}
-            />
-          )}
-          {activeEntity === "workers" && (
-            <NaturalSearch
-              entityType="workers"
-              data={workers}
-              columns={workerColumns}
-              onFiltered={setFilteredWorkers}
-            />
-          )}
-          {activeEntity === "tasks" && (
-            <NaturalSearch
-              entityType="tasks"
-              data={tasks}
-              columns={taskColumns}
-              onFiltered={setFilteredTasks}
-            />
-          )}
-          <div>
-            {activeEntity === "clients" && (
-              <DataGrid
-                data={filteredClients ?? clients}
-                columns={clientColumns}
-                onCellEdit={handleCellEdit}
-                cellErrors={cellErrors}
-              />
-            )}
-            {activeEntity === "workers" && (
-              <DataGrid
-                data={filteredWorkers ?? workers}
-                columns={workerColumns}
-                onCellEdit={handleCellEdit}
-                cellErrors={cellErrors}
-              />
-            )}
-            {activeEntity === "tasks" && (
-              <DataGrid
-                data={filteredTasks ?? tasks}
-                columns={taskColumns}
-                onCellEdit={handleCellEdit}
-                cellErrors={cellErrors}
-              />
-            )}
-          </div>
-          {/* Rule Builder, Rule List, Export */}
-          <div className="flex flex-col gap-4">
-            <RuleBuilder
-              taskIDs={tasks.map(t => t.TaskID)}
-              clientGroups={clientGroups}
-              workerGroups={workerGroups}
-              onAddRule={handleAddRule}
-            />
-            <RuleList rules={rules} onDelete={handleDeleteRule} />
-            <PriorityConfigurator onChange={handlePrioritiesChange} />
-            {/* <ExportRulesButton rules={rules} /> */}
-            <ExportButton
-              clients={clients}
-              workers={workers}
-              tasks={tasks}
-              rules={rules}
-              priorities={priorities}
-            />
-          </div>
-        </div>
+    <div className="min-h-screen flex flex-col bg-background">
+      <Header
+        clients={clients}
+        workers={workers}
+        tasks={tasks}
+        rules={rules}
+        priorities={priorities}
+      />
+      <main className="flex-1 flex flex-row gap-8 w-full mx-auto mt-5">
+        <Sidebar
+          rules={rules}
+          onAddRule={handleAddRule}
+          onDeleteRule={handleDeleteRule}
+          taskIDs={tasks.map((t) => t.TaskID)}
+          clientGroups={clientGroups}
+          workerGroups={workerGroups}
+          priorities={priorities}
+          handleFileParsed={handleFileParsed}
+          handlePrioritiesChange={handlePrioritiesChange}
+        />
+        <MainPanel
+          activeEntity={activeEntity}
+          setActiveEntity={setActiveEntity}
+          clients={clients}
+          workers={workers}
+          tasks={tasks}
+          filteredClients={filteredClients}
+          filteredWorkers={filteredWorkers}
+          filteredTasks={filteredTasks}
+          clientColumns={clientColumns}
+          workerColumns={workerColumns}
+          taskColumns={taskColumns}
+          handleCellEdit={handleCellEdit}
+          cellErrors={cellErrors}
+          rules={rules}
+          handleAddRule={handleAddRule}
+          handleDeleteRule={handleDeleteRule}
+          clientGroups={clientGroups}
+          workerGroups={workerGroups}
+          handleNLSearch={handleNLSearch}
+          setFilteredClients={setFilteredClients}
+          setFilteredWorkers={setFilteredWorkers}
+          setFilteredTasks={setFilteredTasks}
+          priorities={priorities}
+          handlePrioritiesChange={handlePrioritiesChange}
+        />
         {/* Validation Panel (right) */}
         <div className="w-[350px] sticky top-15 h-fit shrink-0">
           <ValidationPanel
-  errors={errors}
-  data={
-    activeEntity === "clients"
-      ? clients
-      : activeEntity === "workers"
-      ? workers
-      : tasks
-  }
-  onApplyFix={(rowId: string, field: string, newValue: any) => {
-  const dataArr =
-    activeEntity === "clients"
-      ? clients
-      : activeEntity === "workers"
-      ? workers
-      : tasks;
-  const setData =
-    activeEntity === "clients"
-      ? setClients
-      : activeEntity === "workers"
-      ? setWorkers
-      : setTasks;
-  const idField =
-    activeEntity === "clients"
-      ? "ClientID"
-      : activeEntity === "workers"
-      ? "WorkerID"
-      : "TaskID";
-  const idx = dataArr.findIndex((row) => row[idField] === rowId);
-  if (idx !== -1) {
-    const updated = [...dataArr];
-    updated[idx] = { ...updated[idx], [field]: newValue };
-    setData(updated);
-    // Re-validate after fix
-    if (activeEntity === "clients") setErrors(validateClients(updated));
-    else if (activeEntity === "workers") setErrors(validateWorkers(updated));
-    else setErrors(validateTasks(updated));
-    console.log("Applied fix:", { rowId, field, newValue, updatedRow: updated[idx] });
-  } else {
-    console.warn("Row not found for fix:", { rowId, field, newValue });
-  }
-}}
-/>
+            errors={activeErrors}
+            data={
+              activeEntity === "clients"
+                ? clients
+                : activeEntity === "workers"
+                ? workers
+                : tasks
+            }
+            onApplyFix={(
+            rowId: string,
+            field: string,
+            newValue: any
+          ) => {
+            if (activeEntity === "clients") {
+              const idField = "ClientID";
+              const idx = clients.findIndex((row) => row[idField] === rowId);
+              if (idx !== -1) {
+                const updated = [...clients];
+                updated[idx] = { ...updated[idx], [field]: newValue };
+                setClients(updated);
+                setErrors((prev) => ({
+                  ...prev,
+                  clients: validateClients(updated),
+                }));
+                console.log("Applied fix:", {
+                  rowId,
+                  field,
+                  newValue,
+                  updatedRow: updated[idx],
+                });
+              } else {
+                console.warn("Row not found for fix:", { rowId, field, newValue });
+              }
+            } else if (activeEntity === "workers") {
+              const idField = "WorkerID";
+              const idx = workers.findIndex((row) => row[idField] === rowId);
+              if (idx !== -1) {
+                const updated = [...workers];
+                updated[idx] = { ...updated[idx], [field]: newValue };
+                setWorkers(updated);
+                setErrors((prev) => ({
+                  ...prev,
+                  workers: validateWorkers(updated),
+                }));
+                console.log("Applied fix:", {
+                  rowId,
+                  field,
+                  newValue,
+                  updatedRow: updated[idx],
+                });
+              } else {
+                console.warn("Row not found for fix:", { rowId, field, newValue });
+              }
+            } else if (activeEntity === "tasks") {
+              const idField = "TaskID";
+              const idx = tasks.findIndex((row) => row[idField] === rowId);
+              if (idx !== -1) {
+                const updated = [...tasks];
+                updated[idx] = { ...updated[idx], [field]: newValue };
+                setTasks(updated);
+                setErrors((prev) => ({
+                  ...prev,
+                  tasks: validateTasks(updated),
+                }));
+                console.log("Applied fix:", {
+                  rowId,
+                  field,
+                  newValue,
+                  updatedRow: updated[idx],
+                });
+              } else {
+                console.warn("Row not found for fix:", { rowId, field, newValue });
+              }
+            }
+          }}
+          />
         </div>
       </main>
     </div>

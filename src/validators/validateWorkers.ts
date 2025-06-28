@@ -7,9 +7,9 @@ export function validateWorkers(data: Worker[]): ValidationError[] {
 
   data.forEach((row, idx) => {
     // Normalize AvailableSlots: handle JSON array string, CSV string, or array (for UI edits)
-    let availableSlots = row.AvailableSlots;
+    let availableSlots: string | number | number[] | undefined = row.AvailableSlots;
     if (typeof availableSlots === "string") {
-      const trimmed = availableSlots.trim();
+      const trimmed = (availableSlots as string).trim();
       if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
         try {
           availableSlots = JSON.parse(trimmed);
@@ -20,7 +20,7 @@ export function validateWorkers(data: Worker[]): ValidationError[] {
         availableSlots = trimmed
           .split(",")
           .map((n: string) => Number(n.trim()))
-          .filter((n) => !isNaN(n));
+          .filter((n: number) => !isNaN(n));
       }
     }
     if (typeof availableSlots === "number") {
@@ -33,7 +33,7 @@ export function validateWorkers(data: Worker[]): ValidationError[] {
     // MaxLoadPerPhase normalization
     let maxLoad = row.MaxLoadPerPhase;
     if (typeof maxLoad === "string") {
-      maxLoad = Number(maxLoad.trim());
+      maxLoad = Number((maxLoad as string).trim());
     }
 
     // Missing required fields
