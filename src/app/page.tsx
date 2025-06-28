@@ -1,103 +1,245 @@
+"use client";
 import Image from "next/image";
+import { useState } from "react";
+import FileUploader from "@/components/FileUploader";
+import DataGrid from "@/components/DataGrid";
+import ValidationPanel from "@/components/ValidationPanel";
+import NaturalSearch from "@/components/NaturalSearch";
+import RuleBuilder, { RuleType } from "@/components/RuleBuilder";
+import RuleList from "@/components/RuleList";
+import ExportRulesButton from "@/components/ExportRulesButton";
+import { validateClients } from "@/validators/validateClients";
+import { validateWorkers } from "@/validators/validateWorkers";
+import { validateTasks } from "@/validators/validateTasks";
+import { searchEntitiesWithNaturalLanguage } from "@/ai/naturalSearch";
+import type { Client, Worker, Task, ValidationError } from "@/types";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [clients, setClients] = useState<Client[]>([]);
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [errors, setErrors] = useState<ValidationError[]>([]);
+  const [activeEntity, setActiveEntity] = useState<"clients" | "workers" | "tasks">("clients");
+  const [filteredClients, setFilteredClients] = useState<Client[] | null>(null);
+  const [filteredWorkers, setFilteredWorkers] = useState<Worker[] | null>(null);
+  const [filteredTasks, setFilteredTasks] = useState<Task[] | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  // Rules state
+  const [rules, setRules] = useState<any[]>([]);
+
+  // Example columns for DataGrid (customize as needed)
+  const clientColumns = [
+    { accessorKey: "ClientID", header: "ClientID" },
+    { accessorKey: "ClientName", header: "ClientName" },
+    { accessorKey: "PriorityLevel", header: "PriorityLevel" },
+    { accessorKey: "RequestedTaskIDs", header: "RequestedTaskIDs" },
+    { accessorKey: "GroupTag", header: "GroupTag" },
+    { accessorKey: "AttributesJSON", header: "AttributesJSON" },
+  ];
+  const workerColumns = [
+    { accessorKey: "WorkerID", header: "WorkerID" },
+    { accessorKey: "WorkerName", header: "WorkerName" },
+    { accessorKey: "Skills", header: "Skills" },
+    { accessorKey: "AvailableSlots", header: "AvailableSlots" },
+    { accessorKey: "MaxLoadPerPhase", header: "MaxLoadPerPhase" },
+    { accessorKey: "WorkerGroup", header: "WorkerGroup" },
+    { accessorKey: "QualificationLevel", header: "QualificationLevel" },
+  ];
+  const taskColumns = [
+    { accessorKey: "TaskID", header: "TaskID" },
+    { accessorKey: "TaskName", header: "TaskName" },
+    { accessorKey: "Category", header: "Category" },
+    { accessorKey: "Duration", header: "Duration" },
+    { accessorKey: "RequiredSkills", header: "RequiredSkills" },
+    { accessorKey: "PreferredPhases", header: "PreferredPhases" },
+    { accessorKey: "MaxConcurrent", header: "MaxConcurrent" },
+  ];
+
+  // Handle file parsing
+  const handleFileParsed = (entityType: "clients" | "workers" | "tasks", parsedData: any[]) => {
+    if (entityType === "clients") {
+      setClients(parsedData);
+      setActiveEntity("clients");
+      setErrors(validateClients(parsedData));
+    } else if (entityType === "workers") {
+      setWorkers(parsedData);
+      setActiveEntity("workers");
+      setErrors(validateWorkers(parsedData));
+    } else if (entityType === "tasks") {
+      setTasks(parsedData);
+      setActiveEntity("tasks");
+      setErrors(validateTasks(parsedData));
+    }
+  };
+
+  // Handle cell edit
+  const handleCellEdit = (rowIndex: number, columnId: string, newValue: any) => {
+    if (activeEntity === "clients") {
+      const updated = [...clients];
+      updated[rowIndex] = { ...updated[rowIndex], [columnId]: newValue };
+      setClients(updated);
+      setErrors(validateClients(updated));
+    } else if (activeEntity === "workers") {
+      const updated = [...workers];
+      updated[rowIndex] = { ...updated[rowIndex], [columnId]: newValue };
+      setWorkers(updated);
+      setErrors(validateWorkers(updated));
+    } else if (activeEntity === "tasks") {
+      const updated = [...tasks];
+      updated[rowIndex] = { ...updated[rowIndex], [columnId]: newValue };
+      setTasks(updated);
+      setErrors(validateTasks(updated));
+    }
+  };
+
+  // Filter errors for the active entity and map to DataGrid cellErrors
+  const cellErrors = errors
+    .filter((e) => {
+      if (activeEntity === "clients" && e.entity === "client") return true;
+      if (activeEntity === "workers" && e.entity === "worker") return true;
+      if (activeEntity === "tasks" && e.entity === "task") return true;
+      return false;
+    })
+    .map((e) => ({
+      rowIndex:
+        (activeEntity === "clients"
+          ? clients
+          : activeEntity === "workers"
+          ? workers
+          : tasks
+        ).findIndex((row: any) => row[`${activeEntity.slice(0, -1)}ID`] === e.rowId),
+      columnId: e.field,
+      message: e.message,
+    }));
+
+  // Example: Use the current clients data for NL search
+  async function handleNLSearch() {
+    const filtered = await searchEntitiesWithNaturalLanguage(
+      "Show clients with PriorityLevel 5",
+      clients,
+      "clients"
+    );
+    console.log(filtered);
+    // You can also set this to state and render in the UI if you want
+  }
+
+  // Rule handlers
+  const handleAddRule = (rule: any) => {
+    setRules((prev) => [...prev, rule]);
+  };
+
+  const handleDeleteRule = (index: number) => {
+    setRules((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // For RuleBuilder group lists
+  const clientGroups = Array.from(new Set(clients.map(c => c.GroupTag).filter(Boolean)));
+  const workerGroups = Array.from(new Set(workers.map(w => w.WorkerGroup).filter(Boolean)));
+
+  return (
+    <div className="flex flex-col items-center min-h-screen p-8 pb-20 gap-8">
+      <main className="flex flex-row gap-8 w-full max-w-7xl">
+        {/* Main content (left) */}
+        <div className="flex-1 flex flex-col gap-8">
+          <h1 className="text-3xl font-bold mb-2">Data Alchemist</h1>
+          <FileUploader onFileParsed={handleFileParsed} />
+          <div className="flex gap-4">
+            <button
+              className={`px-3 py-1 rounded ${activeEntity === "clients" ? "bg-primary text-white" : "bg-muted"}`}
+              onClick={() => {
+                setActiveEntity("clients");
+                setErrors(validateClients(clients));
+              }}
+            >
+              Clients
+            </button>
+            <button
+              className={`px-3 py-1 rounded ${activeEntity === "workers" ? "bg-primary text-white" : "bg-muted"}`}
+              onClick={() => {
+                setActiveEntity("workers");
+                setErrors(validateWorkers(workers));
+              }}
+            >
+              Workers
+            </button>
+            <button
+              className={`px-3 py-1 rounded ${activeEntity === "tasks" ? "bg-primary text-white" : "bg-muted"}`}
+              onClick={() => {
+                setActiveEntity("tasks");
+                setErrors(validateTasks(tasks));
+              }}
+            >
+              Tasks
+            </button>
+          </div>
+          {/* Natural Language Search */}
+          {activeEntity === "clients" && (
+            <NaturalSearch
+              entityType="clients"
+              data={clients}
+              columns={clientColumns}
+              onFiltered={setFilteredClients}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          )}
+          {activeEntity === "workers" && (
+            <NaturalSearch
+              entityType="workers"
+              data={workers}
+              columns={workerColumns}
+              onFiltered={setFilteredWorkers}
+            />
+          )}
+          {activeEntity === "tasks" && (
+            <NaturalSearch
+              entityType="tasks"
+              data={tasks}
+              columns={taskColumns}
+              onFiltered={setFilteredTasks}
+            />
+          )}
+          <div>
+            {activeEntity === "clients" && (
+              <DataGrid
+                data={filteredClients ?? clients}
+                columns={clientColumns}
+                onCellEdit={handleCellEdit}
+                cellErrors={cellErrors}
+              />
+            )}
+            {activeEntity === "workers" && (
+              <DataGrid
+                data={filteredWorkers ?? workers}
+                columns={workerColumns}
+                onCellEdit={handleCellEdit}
+                cellErrors={cellErrors}
+              />
+            )}
+            {activeEntity === "tasks" && (
+              <DataGrid
+                data={filteredTasks ?? tasks}
+                columns={taskColumns}
+                onCellEdit={handleCellEdit}
+                cellErrors={cellErrors}
+              />
+            )}
+          </div>
+          {/* Rule Builder, Rule List, Export */}
+          <div className="flex flex-col gap-4">
+            <RuleBuilder
+              taskIDs={tasks.map(t => t.TaskID)}
+              clientGroups={clientGroups}
+              workerGroups={workerGroups}
+              onAddRule={handleAddRule}
+            />
+            <RuleList rules={rules} onDelete={handleDeleteRule} />
+            <ExportRulesButton rules={rules} />
+          </div>
+        </div>
+        {/* Validation Panel (right) */}
+        <div className="w-[350px] sticky top-15 h-fit shrink-0">
+          <ValidationPanel errors={errors} />
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }

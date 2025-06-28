@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  /* config options here */
+// next.config.js
+const nextConfig = {
+  reactStrictMode: true,
+  swcMinify: true,
+  webpack: config => {
+    config.resolve.alias['@'] = require('path').resolve(__dirname, 'src');
+    return config;
+  },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
