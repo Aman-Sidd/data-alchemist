@@ -13,6 +13,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Sparkles } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type ValidationPanelProps = {
   errors: ValidationError[];
@@ -41,6 +48,9 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
     rowId?: string;
     field?: string;
   }>({ open: false });
+
+  // If no file is selected (data is empty), always show "No errors"
+  const noFileSelected = !data || data.length === 0;
 
   // Suggest Fix handler
   async function handleSuggestFix(error: ValidationError, idx: number) {
@@ -91,7 +101,9 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
     <Card className="h-[calc(100vh-6rem)] w-full max-w-xs min-w-[300px] border-l shadow-lg flex flex-col bg-card">
       <CardContent className="p-4 flex flex-col h-full">
         <h2 className="font-semibold text-base mb-2">Validation Issues</h2>
-        {errors.length === 0 ? (
+        {noFileSelected ? (
+          <div className="text-green-600 text-sm">No errors 🎉</div>
+        ) : errors.length === 0 ? (
           <div className="text-green-600 text-sm">No errors 🎉</div>
         ) : (
           <ScrollArea className="flex-1 max-h-[70vh] pr-1">
@@ -123,15 +135,28 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
                           </span>
                           , <b>{err.field}</b>: {err.message}
                         </span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          title="Suggest Fix"
-                          onClick={() => handleSuggestFix(err, i)}
-                          disabled={loadingIdx === i}
-                        >
-                          {loadingIdx === i ? "..." : <span role="img" aria-label="Suggest Fix">🧠</span>}
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="secondary"
+                                onClick={() => handleSuggestFix(err, i)}
+                                disabled={loadingIdx === i}
+                                aria-label="Suggest Fix"
+                              >
+                                {loadingIdx === i ? (
+                                  <span className="animate-pulse">...</span>
+                                ) : (
+                                  <Sparkles className="w-4 h-4 text-primary" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <span>AI Suggest Fix</span>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </li>
                     ))}
                   </ul>

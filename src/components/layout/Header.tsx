@@ -1,6 +1,7 @@
 import ExportButton from "@/components/ExportButton";
 import type { Client, Worker, Task } from "@/types";
 import type { RuleType } from "@/components/RuleBuilder";
+import Image from "next/image";
 
 interface HeaderProps {
   clients: Client[];
@@ -18,7 +19,17 @@ export default function Header({ clients, workers, tasks, rules, priorities }: H
 
   return (
     <header className="w-full border-b bg-card px-8 py-4 flex items-center justify-between">
-      <span className="text-2xl font-bold tracking-tight">Data Alchemist</span>
+      <div className="flex items-center gap-3">
+        <Image
+          src="/data-alchemist-icon.png"
+          alt="Data Alchemist Logo"
+          width={36}
+          height={36}
+          className="rounded"
+          priority
+        />
+        <span className="text-2xl font-bold tracking-tight">Data Alchemist</span>
+      </div>
       <ExportButton
         clients={clients}
         workers={workers}

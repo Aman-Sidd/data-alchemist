@@ -13,6 +13,7 @@ import { parseNaturalLanguageRule } from "@/ai/nlToRule";
 import { nlpSuggestRules } from "@/ai/nlpSuggestRules";
 import { toast } from "sonner";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Sparkles } from "lucide-react";
 
 export type RuleType =
   | "coRun"
@@ -158,11 +159,11 @@ export default function RuleBuilder({
         <CardTitle>Add New Rule</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col  gap-4">
           {/* NL Rule Input */}
           <div>
             <Label>Natural Language Rule</Label>
-            <div className="flex gap-2 mt-1">
+            <div className="flex gap-2 mt-2">
               <Input
                 value={nlInput}
                 onChange={e => setNlInput(e.target.value)}
@@ -179,6 +180,7 @@ export default function RuleBuilder({
           <div>
             <Button onClick={handleSuggestRules} disabled={suggestLoading}>
               {suggestLoading ? "Suggesting..." : "Suggest Rules"}
+              {!suggestLoading && <Sparkles className="w-4 h-4 text-secondary" />}
             </Button>
           </div>
 
@@ -222,7 +224,7 @@ export default function RuleBuilder({
           )}
 
           <div>
-            <Label>Rule Type</Label>
+            <Label className="mb-2">Rule Type</Label>
             <Select value={ruleType} onValueChange={v => setRuleType(v as RuleType)}>
               <SelectTrigger className="w-full mt-1">
                 <SelectValue placeholder="Select rule type" />
