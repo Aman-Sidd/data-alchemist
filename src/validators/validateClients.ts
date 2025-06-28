@@ -73,7 +73,7 @@ export function validateClients(
     // PriorityLevel normalization and validation
     let priorityLevel = row.PriorityLevel;
     if (typeof priorityLevel === "string") {
-      priorityLevel = Number(priorityLevel.trim());
+      priorityLevel = Number((priorityLevel as string).trim());
     }
     if (
       priorityLevel !== undefined &&
@@ -93,7 +93,7 @@ export function validateClients(
     // RequestedTaskIDs: normalize for both CSV and XLSX, and check for unknown references
     let requestedTaskIDs = row.RequestedTaskIDs;
     if (typeof requestedTaskIDs === "string") {
-      const split = requestedTaskIDs.split(",");
+      const split = (requestedTaskIDs as string).split(",");
       split.forEach((id, i) => {
         if (id.trim() === "") {
           errors.push({

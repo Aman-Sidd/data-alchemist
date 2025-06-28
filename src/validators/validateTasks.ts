@@ -58,7 +58,7 @@ export function validateTasks(data: Task[]): ValidationError[] {
 
     // Duration normalization and validation
     let duration = row.Duration;
-    if (typeof duration === "string") duration = Number(duration.trim());
+    if (typeof duration === "string") duration = Number((duration as string).trim());
     if (
       duration === undefined ||
       typeof duration !== "number" ||
@@ -74,7 +74,7 @@ export function validateTasks(data: Task[]): ValidationError[] {
     }
 
     // MaxConcurrent normalization and validation
-    let maxConcurrent = row.MaxConcurrent;
+    let maxConcurrent = (row as any)["MaxConcurrent"];
     if (typeof maxConcurrent === "string")
       maxConcurrent = Number(maxConcurrent.trim());
     if (
@@ -94,10 +94,11 @@ export function validateTasks(data: Task[]): ValidationError[] {
     }
 
     // RequiredSkills: should be a non-empty string
+    const requiredSkills = (row as any)["RequiredSkills"];
     if (
-      !row.RequiredSkills ||
-      typeof row.RequiredSkills !== "string" ||
-      row.RequiredSkills.trim() === ""
+      !requiredSkills ||
+      typeof requiredSkills !== "string" ||
+      requiredSkills.trim() === ""
     ) {
       errors.push({
         entity: "task",
@@ -116,10 +117,20 @@ export function validateTasks(data: Task[]): ValidationError[] {
       const isArray = /^\[\s*\d+(?:\s*,\s*\d+)*\s*\]$/.test(str);
       isValid = isRange || isArray;
     } else if (Array.isArray(preferredPhases)) {
-      isValid =
-        preferredPhases.length > 0 &&
-        preferredPhases.every((n) => typeof n === "number" && !isNaN(n));
-    }
+      function isNumberArray(arr: unknown): arr is number[] {
+  return (
+    Array.isArray(arr) &&
+    arr.length > 0 &&
+    arr.every((n) => typeof n === 'number' && !isNaN(n))
+  );
+}
+
+      if (isNumberArray(preferredPhases)) {
+        isValid = true;
+      }
+
+}
+
     if (!isValid) {
       errors.push({
         entity: "task",

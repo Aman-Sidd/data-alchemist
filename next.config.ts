@@ -1,13 +1,18 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
+import type { Configuration as WebpackConfig } from 'webpack'; // 👈 Import Webpack config type
+import path from 'path';
 
-// next.config.js
-const nextConfig = {
+const nextConfig: NextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  webpack: config => {
-    config.resolve.alias['@'] = require('path').resolve(__dirname, 'src');
+  webpack: (config: WebpackConfig): WebpackConfig => {
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      '@': path.resolve(__dirname, 'src'),
+    };
     return config;
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
