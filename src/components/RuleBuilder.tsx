@@ -9,6 +9,10 @@ import { Command, CommandInput, CommandItem, CommandList } from "./ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Checkbox } from "./ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { parseNaturalLanguageRule } from "@/ai/nlToRule";
+import { nlpSuggestRules } from "@/ai/nlpSuggestRules";
+import { toast } from "sonner";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export type RuleType =
   | "coRun"
@@ -57,6 +61,14 @@ export default function RuleBuilder({
   const [regexTemplate, setRegexTemplate] = useState<string>("");
   const [regexParams, setRegexParams] = useState<string>("");
 
+  // For NL rule input
+  const [nlInput, setNlInput] = useState("");
+  const [nlLoading, setNlLoading] = useState(false);
+
+  // For AI suggestions
+  const [suggestedRules, setSuggestedRules] = useState<any[]>([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+
   function resetForm() {
     setRuleType("");
     setSelectedTaskIDs([]);
@@ -93,6 +105,53 @@ export default function RuleBuilder({
     resetForm();
   }
 
+  // --- Natural Language Rule Handler ---
+  async function handleNLSubmit() {
+    if (!nlInput.trim()) return;
+    setNlLoading(true);
+    try {
+      const contextData = { taskIDs, clientGroups, workerGroups };
+      const rule = await parseNaturalLanguageRule(nlInput, contextData);
+      if (rule && rule.type) {
+        onAddRule(rule);
+        toast.success("Rule parsed and added!");
+        setNlInput("");
+      } else {
+        toast.error("Could not parse rule. Please try again.");
+      }
+    } catch (e: any) {
+      toast.error("Failed to parse rule: " + (e?.message || "Unknown error"));
+    } finally {
+      setNlLoading(false);
+    }
+  }
+
+  // --- AI Suggest Rules Handler ---
+  async function handleSuggestRules() {
+    setSuggestLoading(true);
+    try {
+      const suggestions = await nlpSuggestRules(clientGroups, taskIDs, workerGroups);
+      setSuggestedRules(suggestions);
+      if (!suggestions.length) {
+        toast("No suggestions found.");
+      }
+    } catch (e: any) {
+      toast.error("Failed to get suggestions: " + (e?.message || "Unknown error"));
+    } finally {
+      setSuggestLoading(false);
+    }
+  }
+
+  function handleAcceptSuggestion(rule: any) {
+    onAddRule(rule);
+    toast.success("Rule added!");
+    setSuggestedRules(suggestedRules.filter(r => r !== rule));
+  }
+
+  function handleRejectSuggestion(rule: any) {
+    setSuggestedRules(suggestedRules.filter(r => r !== rule));
+  }
+
   return (
     <Card className="max-w-xl w-full">
       <CardHeader>
@@ -100,6 +159,68 @@ export default function RuleBuilder({
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-4">
+          {/* NL Rule Input */}
+          <div>
+            <Label>Natural Language Rule</Label>
+            <div className="flex gap-2 mt-1">
+              <Input
+                value={nlInput}
+                onChange={e => setNlInput(e.target.value)}
+                placeholder="e.g. Only GroupA can run Task T1 in phase 2"
+                disabled={nlLoading}
+              />
+              <Button onClick={handleNLSubmit} disabled={nlLoading || !nlInput.trim()}>
+                {nlLoading ? "Parsing..." : "Parse"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Suggest Rules Button */}
+          <div>
+            <Button onClick={handleSuggestRules} disabled={suggestLoading}>
+              {suggestLoading ? "Suggesting..." : "Suggest Rules"}
+            </Button>
+          </div>
+
+          {/* Suggestions Display */}
+          {suggestedRules.length > 0 && (
+            <Accordion type="multiple" className="mb-4">
+  {suggestedRules.map((rule, idx) => {
+    // Remove 'reason' from the previewed JSON
+    const { reason, ...ruleWithoutReason } = rule;
+    return (
+      <AccordionItem key={idx} value={`suggestion-${idx}`}>
+        <AccordionTrigger>
+          <span>
+            🧠 {rule.reason ? rule.reason : "AI Suggested Rule"}
+          </span>
+        </AccordionTrigger>
+        <AccordionContent>
+          <pre className="bg-muted p-2 rounded text-xs overflow-x-auto mb-2">
+            {JSON.stringify(ruleWithoutReason, null, 2)}
+          </pre>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={() => handleAcceptSuggestion(ruleWithoutReason)}
+            >
+              ✅ Add to Rule Config
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleRejectSuggestion(rule)}
+            >
+              ❌ Reject
+            </Button>
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    );
+  })}
+</Accordion>
+          )}
+
           <div>
             <Label>Rule Type</Label>
             <Select value={ruleType} onValueChange={v => setRuleType(v as RuleType)}>
@@ -167,33 +288,33 @@ export default function RuleBuilder({
             </div>
           )}
 
-        {ruleType === "slotRestriction" && (
-  <div className="flex gap-2">
-    <div className="flex-1">
-      <Label>Group</Label>
-      <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-        <SelectTrigger className="w-full mt-1">
-          <SelectValue placeholder="Select group" />
-        </SelectTrigger>
-        <SelectContent>
-          {Array.from(new Set([...clientGroups, ...workerGroups])).map(g => (
-            <SelectItem key={g} value={g}>{g}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-    <div className="flex-1">
-      <Label>Min Common Slots</Label>
-      <Input
-        type="number"
-        value={minCommonSlots}
-        onChange={e => setMinCommonSlots(e.target.value)}
-        placeholder="e.g. 2"
-        min={1}
-      />
-    </div>
-  </div>
-)}
+          {ruleType === "slotRestriction" && (
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Label>Group</Label>
+                <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                  <SelectTrigger className="w-full mt-1">
+                    <SelectValue placeholder="Select group" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from(new Set([...clientGroups, ...workerGroups])).map(g => (
+                      <SelectItem key={g} value={g}>{g}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1">
+                <Label>Min Common Slots</Label>
+                <Input
+                  type="number"
+                  value={minCommonSlots}
+                  onChange={e => setMinCommonSlots(e.target.value)}
+                  placeholder="e.g. 2"
+                  min={1}
+                />
+              </div>
+            </div>
+          )}
 
           {ruleType === "loadLimit" && (
             <div className="flex gap-2">

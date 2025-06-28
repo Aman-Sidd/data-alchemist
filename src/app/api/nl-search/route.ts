@@ -38,10 +38,31 @@ export async function POST(req: NextRequest) {
     });
 
     // Improved prompt: very explicit, no code fences, no markdown, only code
-    const prompt = `Given entityType: "${entityType}" and query: "${query}", generate ONLY the JavaScript filter function body (no code fences, no comments, no function wrapper, no markdown, just the code). The function receives a variable 'item' representing a single entity.`;
+const prompt = `
+You are an expert JavaScript function generator. Your job is to convert a plain-English filter query into the BODY of a filter function (no wrapper, no markdown, no comments).
+
+The function body will be inserted into: item => { /* your code here */ }
+
+Instructions:
+- Only return raw JavaScript logic that can be placed inside a function.
+- Do NOT include the function wrapper or explanation.
+- The function receives a single object called 'item' representing a row of data.
+- entityType = "${entityType}" (e.g., "clients", "workers", "tasks")
+- data = ${JSON.stringify(data[0] || {})} (sample structure)
+
+Requirements:
+- Be case-insensitive when matching field names (e.g., "prioritylevel" ≈ "PriorityLevel")
+- Handle fuzzy operators like "more than", "less than or equal to", "at most", "no more than", etc.
+- Understand number comparisons: >, <, >=, <=, =, equals, is
+- Always check for field existence before comparing: e.g. item.Duration && item.Duration > 1
+- Assume data types (e.g., Duration is a number, RequestedTaskIDs is a comma-separated string)
+- If input is ambiguous or generic, default to: return true;
+
+Query: """${query}"""
+`.trim();
 
     const completion = await openai.chat.completions.create({
-      model: "meta-llama/llama-4-maverick:free",
+      model: "deepseek/deepseek-chat-v3-0324:free",
       messages: [
         {
           role: "user",
