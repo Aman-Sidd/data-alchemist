@@ -8,11 +8,13 @@ import NaturalSearch from "@/components/NaturalSearch";
 import RuleBuilder, { RuleType } from "@/components/RuleBuilder";
 import RuleList from "@/components/RuleList";
 import ExportRulesButton from "@/components/ExportRulesButton";
+import ExportButton from "@/components/ExportButton";
 import { validateClients } from "@/validators/validateClients";
 import { validateWorkers } from "@/validators/validateWorkers";
 import { validateTasks } from "@/validators/validateTasks";
 import { searchEntitiesWithNaturalLanguage } from "@/ai/naturalSearch";
 import type { Client, Worker, Task, ValidationError } from "@/types";
+import PriorityConfigurator from "@/components/PriorityConfigurator";
 
 export default function Home() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -26,6 +28,12 @@ export default function Home() {
 
   // Rules state
   const [rules, setRules] = useState<any[]>([]);
+  const [priorities, setPriorities] = useState<Record<string, number>>({
+    PriorityLevel: 5,
+    RequestedTaskFulfillment: 5,
+    Fairness: 5,
+    Workload: 5,
+  });
 
   // Example columns for DataGrid (customize as needed)
   const clientColumns = [
@@ -136,6 +144,11 @@ export default function Home() {
   const clientGroups = Array.from(new Set(clients.map(c => c.GroupTag).filter(Boolean)));
   const workerGroups = Array.from(new Set(workers.map(w => w.WorkerGroup).filter(Boolean)));
 
+  // To sync priorities from PriorityConfigurator, you can pass a setter:
+  function handlePrioritiesChange(newPriorities: Record<string, number>) {
+    setPriorities(newPriorities);
+  }
+
   return (
     <div className="flex flex-col items-center min-h-screen p-8 pb-20 gap-8">
       <main className="flex flex-row gap-8 w-full max-w-7xl">
@@ -232,7 +245,15 @@ export default function Home() {
               onAddRule={handleAddRule}
             />
             <RuleList rules={rules} onDelete={handleDeleteRule} />
+            <PriorityConfigurator onChange={handlePrioritiesChange} />
             <ExportRulesButton rules={rules} />
+            <ExportButton
+              clients={clients}
+              workers={workers}
+              tasks={tasks}
+              rules={rules}
+              priorities={priorities}
+            />
           </div>
         </div>
         {/* Validation Panel (right) */}
