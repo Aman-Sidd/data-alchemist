@@ -6,27 +6,63 @@ export function validateWorkers(data: Worker[]): ValidationError[] {
   const requiredFields = ["WorkerID", "WorkerName", "Skills", "AvailableSlots", "MaxLoadPerPhase"];
 
   data.forEach((row, idx) => {
-    // Normalize AvailableSlots: handle JSON array string, CSV string, or array (for UI edits)
-    let availableSlots: string | number | number[] | undefined = row.AvailableSlots;
-    if (typeof availableSlots === "string") {
-      const trimmed = (availableSlots as string).trim();
+    // Strict normalization and validation for AvailableSlots
+    let availableSlots: number[] = [];
+    let availableSlotsRaw = row.AvailableSlots;
+
+    if (typeof availableSlotsRaw === "string") {
+      const trimmed = availableSlotsRaw.trim();
       if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
         try {
-          availableSlots = JSON.parse(trimmed);
+          const parsed = JSON.parse(trimmed);
+          if (
+            Array.isArray(parsed) &&
+            parsed.length > 0 &&
+            parsed.every(
+              (n) =>
+                typeof n === "number" &&
+                !isNaN(n) &&
+                n !== null &&
+                n !== undefined
+            )
+          ) {
+            availableSlots = parsed;
+          } else {
+            // Invalid array or contains invalid values
+            availableSlots = [];
+          }
         } catch {
+          // JSON parse failed
           availableSlots = [];
         }
       } else {
-        availableSlots = trimmed
-          .split(",")
-          .map((n: string) => Number(n.trim()))
-          .filter((n: number) => !isNaN(n));
+        // Only allow a single number, not CSV or any other format
+        if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+          availableSlots = [Number(trimmed)];
+        } else {
+          // Invalid format (e.g. "2,4" or anything else)
+          availableSlots = [];
+        }
       }
-    }
-    if (typeof availableSlots === "number") {
-      availableSlots = [availableSlots];
-    }
-    if (!availableSlots) {
+    } else if (Array.isArray(availableSlotsRaw)) {
+      // Already an array, validate all values
+      if (
+        availableSlotsRaw.length > 0 &&
+        availableSlotsRaw.every(
+          (n) =>
+            typeof n === "number" &&
+            !isNaN(n) &&
+            n !== null &&
+            n !== undefined
+        )
+      ) {
+        availableSlots = availableSlotsRaw;
+      } else {
+        availableSlots = [];
+      }
+    } else if (typeof availableSlotsRaw === "number") {
+      availableSlots = [availableSlotsRaw];
+    } else {
       availableSlots = [];
     }
 
@@ -75,7 +111,7 @@ export function validateWorkers(data: Worker[]): ValidationError[] {
       });
     }
 
-    // AvailableSlots: should be a non-empty array of numbers
+    // AvailableSlots: must be a non-empty array of valid numbers
     if (
       !Array.isArray(availableSlots) ||
       availableSlots.length === 0 ||
@@ -85,7 +121,7 @@ export function validateWorkers(data: Worker[]): ValidationError[] {
         entity: "worker",
         rowId: row.WorkerID ?? "",
         field: "AvailableSlots",
-        message: "AvailableSlots must be a non-empty array of numbers",
+        message: "AvailableSlots must be a non-empty array of valid numbers (e.g. [1,2,3])",
       });
     }
 

@@ -41,6 +41,7 @@ const DataGrid: React.FC<DataGridProps> = ({
     cellErrors.some(
       (err) => err.rowIndex === rowIdx && err.columnId === colId
     );
+const arrayFields = ["AvailableSlots", "PreferredPhases"];
 
   return (
     <div className="overflow-x-auto rounded-lg border">
@@ -65,19 +66,29 @@ const DataGrid: React.FC<DataGridProps> = ({
               {row.getVisibleCells().map((cell) => (
                 <td key={cell.id} className="px-4 py-2 border-b">
                   <Input
-                    className={cn(
-                      "w-full bg-transparent",
-                      isCellInvalid(rowIdx, cell.column.id) && "border-destructive focus-visible:ring-destructive"
-                    )}
-                    value={
-                    cell.getValue() !== undefined && cell.getValue() !== null
-                      ? String(cell.getValue())
-                      : ""
-                  }
-                    onChange={(e) =>
-                      onCellEdit(rowIdx, cell.column.id, e.target.value)
-                    }
-                  />
+  className={cn(
+    "w-full bg-transparent",
+    isCellInvalid(rowIdx, cell.column.id) && "border-destructive focus-visible:ring-destructive"
+  )}
+  value={
+    arrayFields.includes(cell.column.id) && Array.isArray(cell.getValue())
+      ? JSON.stringify(cell.getValue())
+      : cell.getValue() !== undefined && cell.getValue() !== null
+      ? String(cell.getValue())
+      : ""
+  }
+  onChange={(e) => {
+    let newValue: any = e.target.value;
+    if (arrayFields.includes(cell.column.id)) {
+      try {
+        newValue = JSON.parse(e.target.value);
+      } catch {
+        // keep as string if not valid JSON
+      }
+    }
+    onCellEdit(rowIdx, cell.column.id, newValue);
+  }}
+/>
                 </td>
               ))}
             </tr>

@@ -136,21 +136,23 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
                           , <b>{err.field}</b>: {err.message}
                         </span>
                         <TooltipProvider>
-                          <Tooltip>
+                          <Tooltip open={loadingIdx !== null ? false : undefined} disableHoverableContent={loadingIdx !== null}>
                             <TooltipTrigger asChild>
-                              <Button
-                                size="icon"
-                                variant="secondary"
-                                onClick={() => handleSuggestFix(err, i)}
-                                disabled={loadingIdx === i}
-                                aria-label="Suggest Fix"
-                              >
-                                {loadingIdx === i ? (
-                                  <span className="animate-pulse">...</span>
-                                ) : (
-                                  <Sparkles className="w-4 h-4 text-primary" />
-                                )}
-                              </Button>
+                              <span>
+                                <Button
+                                  size="icon"
+                                  variant="secondary"
+                                  onClick={() => handleSuggestFix(err, i)}
+                                  disabled={loadingIdx !== null}
+                                  aria-label="Suggest Fix"
+                                >
+                                  {loadingIdx === i ? (
+                                    <span className="animate-pulse">...</span>
+                                  ) : (
+                                    <Sparkles className="w-4 h-4 text-primary" />
+                                  )}
+                                </Button>
+                              </span>
                             </TooltipTrigger>
                             <TooltipContent>
                               <span>AI Suggest Fix</span>
@@ -178,7 +180,11 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
           {dialog.newValue !== undefined && (
             <div className="mb-2">
               <strong>Suggested Value:</strong>
-              <div className="mt-1 break-all">{String(dialog.newValue)}</div>
+              <div className="mt-1 break-all">
+                {Array.isArray(dialog.newValue)
+                  ? JSON.stringify(dialog.newValue)
+                  : String(dialog.newValue)}
+              </div>
             </div>
           )}
           <DialogFooter>
