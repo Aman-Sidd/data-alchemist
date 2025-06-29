@@ -108,28 +108,30 @@ export function validateTasks(data: Task[]): ValidationError[] {
       });
     }
 
-    // PreferredPhases: always validate the current value
+    // PreferredPhases: must be an array of numbers or a valid range string
     let preferredPhases = row.PreferredPhases;
     let isValid = false;
-    if (typeof preferredPhases === "string") {
-      const str = preferredPhases.trim();
-      const isRange = /^\d+\s*-\s*\d+$/.test(str);
-      const isArray = /^\[\s*\d+(?:\s*,\s*\d+)*\s*\]$/.test(str);
-      isValid = isRange || isArray;
-    } else if (Array.isArray(preferredPhases)) {
-      function isNumberArray(arr: unknown): arr is number[] {
-  return (
-    Array.isArray(arr) &&
-    arr.length > 0 &&
-    arr.every((n) => typeof n === 'number' && !isNaN(n))
-  );
-}
 
+    function isNumberArray(arr: unknown): arr is number[] {
+      return (
+        Array.isArray(arr) &&
+        arr.length > 0 &&
+        arr.every((n) => typeof n === "number" && !isNaN(n))
+      );
+    }
+
+    if (Array.isArray(preferredPhases)) {
       if (isNumberArray(preferredPhases)) {
         isValid = true;
       }
-
-}
+    } else if (typeof preferredPhases === "string") {
+      const str = preferredPhases.trim();
+      // Accept range like "1-3"
+      const isRange = /^\d+\s*-\s*\d+$/.test(str);
+      // Accept array string like "[2,4,5]"
+      const isArray = /^\[\s*\d+(?:\s*,\s*\d+)*\s*\]$/.test(str);
+      isValid = isRange || isArray;
+    }
 
     if (!isValid) {
       errors.push({
@@ -137,7 +139,7 @@ export function validateTasks(data: Task[]): ValidationError[] {
         rowId: row.TaskID ?? "",
         field: "PreferredPhases",
         message:
-          "PreferredPhases must be a range (e.g. 1-3) or array (e.g. [2,4,5])",
+          "PreferredPhases must be an array of numbers (e.g. [2,4,5]) or a range (e.g. 1-3)",
       });
     }
   });
