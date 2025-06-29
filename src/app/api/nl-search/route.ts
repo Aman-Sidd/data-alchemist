@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import OpenAI from "openai";
 
-export const runtime = "edge";
 
 // Helper to clean code fences and markdown from LLM output
   function cleanFunctionBody(content: string) {
