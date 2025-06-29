@@ -11,7 +11,7 @@ export function validateWorkers(data: Worker[]): ValidationError[] {
     let availableSlotsRaw = row.AvailableSlots;
 
     if (typeof availableSlotsRaw === "string") {
-      const trimmed = availableSlotsRaw.trim();
+      const trimmed = (availableSlotsRaw as string).trim();
       if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
         try {
           const parsed = JSON.parse(trimmed);
